@@ -1,0 +1,26 @@
+{
+  "name": "appseed-generic",
+  "version": "1.0.0",
+  "description": "Generic tooling by AppSeed",
+  "author": "AppSeed",
+  "keywords": [
+    "css",
+    "sass",
+    "web"
+  ],
+  "homepage": "https://appseed.us",
+  "bugs": {
+    "email": "support@appseed.us"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "license": "MIT License",
+  "devDependencies": {
+    "vite": "^5.2.8"
+  },
+  "dependencies": {
+    "sass": "^1.75.0"
+  }
+}

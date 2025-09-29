@@ -1,0 +1,72 @@
+{% extends "layouts/base-fullscreen.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %} Login {% endblock title %}
+
+{% block content %}
+<div class="content">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4 col-md-6 ml-auto mr-auto">
+                <form class="form" method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="card card-login card-white">
+                        <div class="card-header">
+                            <h1 class="card-title">{% trans 'Login' %}</h1>
+                        </div>
+                        <div class="card-body">
+                            {% if error %}
+                            <div class="text-danger text-center mb-3">
+                                {{ error }}
+                            </div>
+                            {% endif %}
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">
+                                        <i class="tim-icons icon-single-02"></i>
+                                    </div>
+                                </div>
+                                <input type="text" name="username" class="form-control" placeholder="Username" required>
+                            </div>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">
+                                        <i class="tim-icons icon-lock-circle"></i>
+                                    </div>
+                                </div>
+                                <input type="password" name="password" placeholder="Password" class="form-control" required>
+                            </div>
+                            <input type="hidden" name="next" value="{{ next }}">
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary btn-lg btn-block mb-3">{% trans 'Login' %}</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block javascripts %}
+<!-- Prevent collapse.js error -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure sidebar elements exist before initialization
+    if (!document.querySelector('.sidebar')) {
+        const dummySidebar = document.createElement('div');
+        dummySidebar.className = 'sidebar';
+        dummySidebar.style.display = 'none';
+        document.body.appendChild(dummySidebar);
+    }
+    if (!document.querySelector('.main-panel')) {
+        const dummyMainPanel = document.createElement('div');
+        dummyMainPanel.className = 'main-panel';
+        dummyMainPanel.style.display = 'none';
+        document.body.appendChild(dummyMainPanel);
+    }
+});
+</script>
+{% endblock javascripts %} 

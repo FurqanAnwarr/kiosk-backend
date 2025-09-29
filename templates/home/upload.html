@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Images</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        /* Your existing styles */
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h2>Upload Images</h2>
+        <form id="uploadForm" class="upload-form">
+            {% csrf_token %}
+            <div class="file-input">
+                <input type="file" id="imageInput" accept="image/*" multiple required>
+                <p>Click to select or drag images here</p>
+            </div>
+            <button type="submit" class="submit-button">Upload</button>
+        </form>
+        <p id="successMessage" class="success-message" style="display: none;">Images uploaded successfully!</p>
+        <p id="errorMessage" class="error-message" style="display: none;"></p>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData();
+            const imageFiles = document.getElementById('imageInput').files;
+
+            for (let i = 0; i < imageFiles.length; i++) {
+                formData.append('images', imageFiles[i]);
+            }
+
+            const csrfToken = getCookie('csrftoken');
+
+            try {
+                const response = await fetch(`/upload/{{ kiosk_uuid }}/{{ image_uuid }}/submit/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log(data); // Log the base64 images array
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('errorMessage').style.display = 'none';
+                    document.getElementById('uploadForm').reset();
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('successMessage').style.display = 'none';
+            }
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
