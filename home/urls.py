@@ -3,6 +3,7 @@ from django.contrib.auth import views as auth_views
 from . import views
 from .views import (
     KioskTestView,
+    create_reader,
     login_view,
     InstagramPostsView,
     ImageStatusAPI,
@@ -37,4 +38,7 @@ urlpatterns = [
     path('api/payment/cancel/', PaypalAPICancel.as_view(), name='payment-cancel'),
     path('api/cards/', CardImageAPI.as_view(), name='card-list'),
     path('api/cards/updates/', CardImageAPI.as_view(), name='card-updates'),
+    path("api/register-kiosk/", views.register_kiosk, name="register_kiosk"),
+    path("api/heartbeat/", views.heartbeat, name="heartbeat"),
+    path('api/create-reader/', create_reader, name='create_reader'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

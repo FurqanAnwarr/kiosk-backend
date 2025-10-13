@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import KioskClient, KioskConfiguration, KioskHealthCheck, Order, CardImage
+from .models import KioskClient, KioskConfiguration, KioskHealthCheck, Order, CardImage, KioskDevice, ReaderDevice
 from django.core.files.base import ContentFile
 import csv
 import io
@@ -40,6 +40,17 @@ class KioskClientForm(forms.ModelForm):
             instance.save()
         return instance
 
+@admin.register(KioskDevice)
+class KioskDeviceAdmin(admin.ModelAdmin):
+    list_display = ("kiosk_id", "status", "location", "registered_at", "last_seen_at")
+    search_fields = ("kiosk_id", "location")
+    list_filter = ("status",)
+
+@admin.register(ReaderDevice)
+class ReaderDeviceAdmin(admin.ModelAdmin):
+    list_display = ("reader_id", "name", "country", "city", "state", "address", "postalCode", "kiosk", "registered_at")
+    search_fields = ("reader_id", "name")
+    list_filter = ("kiosk",)
 @admin.register(KioskClient)
 class KioskClientAdmin(admin.ModelAdmin):
     form = KioskClientForm

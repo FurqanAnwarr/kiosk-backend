@@ -71,6 +71,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
+    "home.middleware.kiosk_auth.KioskAuthMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"

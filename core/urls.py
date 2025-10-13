@@ -23,7 +23,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
-from home.views import CreateLocationAPI, CreatePaymentIntentAPI, CreateReaderAPI, ListReadersAPI, PresentPaymentMethodAPI, ProcessPaymentIntentAPI 
+from home.views import CreateLocationAPI, CreatePaymentIntentAPI, CreateReaderAPI, GetReaderByIdAPI, ListReadersAPI, PresentPaymentMethodAPI, ProcessPaymentIntentAPI 
 
 def redirect_to_admin_login(request):
     return redirect('admin:login')
@@ -75,6 +75,7 @@ urlpatterns = [
     path("api/create-reader/", CreateReaderAPI.as_view(), name="create-reader"),
     path("api/create-location/", CreateLocationAPI.as_view(), name="create-location"),
     path("api/present-payment-method/", PresentPaymentMethodAPI.as_view(), name="present-payment-method"),
+    path("api/readers/<str:reader_id>/", GetReaderByIdAPI.as_view(), name="get-reader-by-id"),
     path("api/readers/", ListReadersAPI.as_view(), name="list-readers"),
 ]
 

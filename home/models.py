@@ -1,8 +1,11 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 import uuid
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 import os
+
+import stripe
 
 class KioskClient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -98,6 +101,81 @@ class Order(models.Model):
 def card_image_upload_path(instance, filename):
     ext = filename.split('.')[-1]
     return f'cards/{instance.id}.{ext}'
+
+class KioskDevice(models.Model):
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("disabled", "Disabled"),
+    ]
+
+    kiosk_id = models.CharField(max_length=64, unique=True, blank=False, null=False)
+    secret_key_hash = models.CharField(max_length=128, blank=False, null=False)
+    location = models.CharField(max_length=255, blank=True, null=False)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    registered_at = models.DateTimeField(default=timezone.now)
+    last_seen_at = models.DateTimeField(blank=True, null=True)
+    allowed_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    allowed_lng = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    allowed_radius = models.IntegerField(default=500)  # in meters
+    hardware_hash = models.CharField(max_length=128, blank=True, null=True)
+
+    def __str__(self):
+        return f"Kiosk {self.kiosk_id} ({self.status})"
+
+
+class ReaderDevice(models.Model):
+    reader_id = models.CharField(max_length=64, unique=True)
+    name = models.CharField(max_length=100, unique=True)
+    country = models.CharField(max_length=16)
+    city = models.CharField(max_length=16)
+    state = models.CharField(max_length=16)
+    address = models.CharField(max_length=16)
+    postalCode = models.CharField(max_length=10)
+    kiosk = models.ForeignKey("home.KioskDevice", related_name="readers", on_delete=models.SET_NULL, null=True, blank=True)
+    stripe_location_id = models.CharField(max_length=64, blank=True, null=True)  # ✅ Added
+    registered_at = models.DateTimeField(default=timezone.now)
+
+    def clean(self):
+        required_fields = ["country", "city", "state", "address", "postalCode", "reader_id", "name"]
+        for field in required_fields:
+            if not getattr(self, field):
+                raise ValidationError(f"{field} is required")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        is_new = self.pk is None
+
+        if is_new:
+            try:
+                # Create Stripe Location
+                location = stripe.terminal.Location.create(
+                    display_name=self.name,
+                    address={
+                        "line1": self.address,
+                        "city": self.city,
+                        "state": self.state,
+                        "country": self.country,
+                        "postal_code": self.postalCode,
+                    },
+                )
+                self.stripe_location_id = location.id
+
+                # Register Reader Device
+                reader = stripe.terminal.Reader.create(
+                    registration_code=self.reader_id,
+                    label=self.name,
+                    location=self.stripe_location_id,
+                )
+
+                # Store Stripe reader ID (optional)
+                self.reader_id = reader.id
+            except Exception as e:
+                raise ValidationError(f"Stripe registration failed: {str(e)}")
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Reader {self.name} ({self.reader_id})"
 
 class CardImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

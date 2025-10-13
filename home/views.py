@@ -12,15 +12,18 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+import hashlib, hmac
+from django.utils import timezone
+
 from core import settings
 from .authentication import KioskAuthentication
 from .services import InstagramService, ImageUploadService, PayPalService
-from .models import KioskHealthCheck, KioskClient, Order, CardImage
+from .models import KioskHealthCheck, KioskClient, Order, CardImage, KioskDevice, ReaderDevice
 import logging
 from paypalrestsdk import Payment
 import json
 from rest_framework import viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from .serializers import CardImageSerializer
 from django.core.files.base import ContentFile
 import base64
@@ -193,6 +196,128 @@ def handle_upload(request, kiosk_uuid, image_uuid):
 
     return JsonResponse({'success': True, 'images': images_list})
 
+@csrf_exempt
+def register_kiosk(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=405)
+
+    data = request.POST
+    kiosk_id = data.get("kiosk_id")
+    secret_key = data.get("secret_key")
+    location = data.get("location")
+
+    if not kiosk_id or not secret_key or not location:
+        return JsonResponse({"error": "Missing kiosk_id or secret_key or location"}, status=400)
+
+    # Hash the secret key before storing
+    hashed_key = hashlib.sha256(secret_key.encode()).hexdigest()
+
+    kiosk, created = KioskDevice.objects.update_or_create(
+        kiosk_id=kiosk_id,
+        defaults={
+            "secret_key_hash": hashed_key,
+            "location": location,
+            "last_seen_at": timezone.now(),
+        },
+    )
+
+    return JsonResponse({
+        "message": "Kiosk registered" if created else "Kiosk updated",
+        "status": kiosk.status,
+    })
+
+@csrf_exempt
+def heartbeat(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    kiosk_id = request.headers.get("X-Kiosk-ID")
+    if not kiosk_id:
+        return JsonResponse({"error": "Missing kiosk_id"}, status=400)
+
+    try:
+        kiosk = KioskDevice.objects.get(kiosk_id=kiosk_id)
+    except KioskDevice.DoesNotExist:
+        return JsonResponse({"error": "Kiosk not found"}, status=404)
+
+    kiosk.last_seen_at = timezone.now()
+    kiosk.save(update_fields=["last_seen_at"])
+    return JsonResponse({"message": "Heartbeat updated"})
+
+@api_view(['POST'])
+def create_reader(request):
+    required_fields = ['reader_id', 'name', 'country', 'city', 'state', 'address', 'postalCode']
+    missing = [f for f in required_fields if not request.data.get(f)]
+    if missing:
+        return Response(
+            {"error": f"Missing required fields: {', '.join(missing)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reader_id = request.data['reader_id']
+    name = request.data['name']
+    country = request.data['country']
+    city = request.data['city']
+    state = request.data['state']
+    address = request.data['address']
+    postal_code = request.data['postalCode']
+    kiosk_id = request.data.get('kiosk_id')
+
+    # 1️⃣ create Stripe location
+    try:
+        location = stripe.terminal.Location.create(
+            display_name=name,
+            address={
+                "line1": address,
+                "city": city,
+                "state": state,
+                "postal_code": postal_code,
+                "country": country,
+            },
+        )
+    except Exception as e:
+        return Response({"error": f"Stripe location creation failed: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # 2️⃣ create Stripe reader
+    try:
+        reader = stripe.terminal.Reader.create(
+            registration_code=reader_id,
+            location=location.id,
+        )
+    except Exception as e:
+        return Response({"error": f"Stripe reader creation failed: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # 3️⃣ link to kiosk (optional)
+    kiosk = None
+    if kiosk_id:
+        kiosk = KioskDevice.objects.filter(kiosk_id=kiosk_id).first()
+
+    # 4️⃣ save locally
+    reader_obj = ReaderDevice.objects.create(
+        reader_id=reader_id,
+        name=name,
+        country=country,
+        city=city,
+        state=state,
+        address=address,
+        postalCode=postal_code,
+        kiosk=kiosk,
+        location_id=location.id,
+    )
+
+    return Response({
+        "message": "Reader created successfully",
+        "stripe_reader_id": reader.id,
+        "stripe_location_id": location.id,
+        "reader": {
+            "id": reader_obj.id,
+            "name": reader_obj.name,
+            "reader_id": reader_obj.reader_id,
+            "location": reader_obj.location_id,
+        }
+    }, status=status.HTTP_201_CREATED)
 class CreatePaymentIntentAPI(APIView):
     authentication_classes = []  # disable session / CSRF
     permission_classes = [AllowAny]
@@ -357,6 +482,21 @@ class ListReadersAPI(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class GetReaderByIdAPI(APIView):
+    authentication_classes = []  # Disable session / CSRF
+    permission_classes = [AllowAny]
+
+    def get(self, request, reader_id):
+        try:
+            # Retrieve reader by ID from Stripe
+            reader = stripe.terminal.Reader.retrieve(reader_id)
+            return Response(reader, status=status.HTTP_200_OK)
+        except stripe.error.InvalidRequestError:
+            return Response({"error": "Reader not found"}, status=status.HTTP_404_NOT_FOUND)
+        except stripe.error.StripeError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class ImageUploadFlowAPI(APIView):
     """
     API Documentation for the complete Image Upload Flow
