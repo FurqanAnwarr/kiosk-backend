@@ -66,6 +66,10 @@ class MyLoginView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
 
+        print("RAW DATA:", request.data)
+        print("USERNAME RECEIVED:", request.data.get("username"))
+        print("PASSWORD RECEIVED:", request.data.get("password"))
+        
         if not username or not password:
             return Response(
                 {"error": "Username and password are required."},
@@ -73,7 +77,7 @@ class MyLoginView(APIView):
             )
         
         user = authenticate(request, username=username, password=password)
-
+        
         if user is None:
             return Response(
                 {"error": "Invalid username or password."},
