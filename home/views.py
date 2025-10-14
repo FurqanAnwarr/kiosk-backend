@@ -60,16 +60,13 @@ def index(request):
     return redirect('orders')
 
 class MyLoginView(APIView):
-    permission_classes = []
+    authentication_classes = []  # disable session / CSRF
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
 
-        print("RAW DATA:", request.data)
-        print("USERNAME RECEIVED:", request.data.get("username"))
-        print("PASSWORD RECEIVED:", request.data.get("password"))
-        
         if not username or not password:
             return Response(
                 {"error": "Username and password are required."},
