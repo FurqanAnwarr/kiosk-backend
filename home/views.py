@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
+from rest_framework.authtoken.models import Token
 import hashlib, hmac
 from django.utils import timezone
 
@@ -59,6 +59,40 @@ def login_view(request):
 def index(request):
     return redirect('orders')
 
+class MyLoginView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = authenticate(request, username=username, password=password)
+
+        if user is None:
+            return Response(
+                {"error": "Invalid username or password."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response(
+            {
+                "token": token.key,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+            },
+            status=status.HTTP_200_OK
+        )
 class KioskTestView(APIView):
     authentication_classes = [KioskAuthentication]
     permission_classes = [IsAuthenticated]
