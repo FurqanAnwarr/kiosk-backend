@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, FileResponse, JsonResponse
 from django.contrib.auth import authenticate, login
@@ -353,17 +354,33 @@ def create_reader(request):
             "location": reader_obj.location_id,
         }
     }, status=status.HTTP_201_CREATED)
+
 class CreatePaymentIntentAPI(APIView):
     authentication_classes = []  # disable session / CSRF
     permission_classes = [AllowAny]
 
     def post(self, request):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             amount = request.data.get("amount")
             if not amount:
                 return Response({"error": "amount is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            currency = request.data.get("currency", "usd")
+            currency = request.data.get("currency", "chf")
 
             # Create PaymentIntent on Stripe
             intent = stripe.PaymentIntent.create(
@@ -386,6 +403,21 @@ class ProcessPaymentIntentAPI(APIView):
 
     def post(self, request):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+            
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             reader_id = request.data.get("reader_id")
             payment_intent = request.data.get("payment_intent")
 
@@ -413,6 +445,21 @@ class CreateReaderAPI(APIView):
 
     def post(self, request):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+            
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             registration_code = request.data.get("registration_code")
             label = request.data.get("label")
             location = request.data.get("location")
@@ -443,6 +490,21 @@ class CreateLocationAPI(APIView):
 
     def post(self, request):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+            
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             display_name = request.data.get("display_name")
             address = request.data.get("address")
 
@@ -509,6 +571,21 @@ class ListReadersAPI(APIView):
 
     def get(self, request):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+            
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             # Call Stripe API to list readers
             readers = stripe.terminal.Reader.list()
             return Response(readers, status=status.HTTP_200_OK)
@@ -523,6 +600,21 @@ class GetReaderByIdAPI(APIView):
 
     def get(self, request, reader_id):
         try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+            
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             # Retrieve reader by ID from Stripe
             reader = stripe.terminal.Reader.retrieve(reader_id)
             return Response(reader, status=status.HTTP_200_OK)
@@ -532,6 +624,7 @@ class GetReaderByIdAPI(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ImageUploadFlowAPI(APIView):
     """
     API Documentation for the complete Image Upload Flow
