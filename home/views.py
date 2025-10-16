@@ -439,6 +439,45 @@ class ProcessPaymentIntentAPI(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class PaymentIntentStatusAPI(APIView):
+    authentication_classes = []  # disable session / CSRF
+    permission_classes = [AllowAny]
+
+    def get(self, request, payment_intent_id):
+        try:
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+
+            if not client_key:
+                return Response(
+                    {"error": "Missing client_secret_key header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid client_secret_key"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+
+            return Response(
+                {
+                    "id": intent.id,
+                    "status": intent.status,
+                    "amount": intent.amount,
+                    "currency": intent.currency,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except stripe.error.InvalidRequestError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class CreateReaderAPI(APIView):
     authentication_classes = []  # disable session / CSRF
     permission_classes = [AllowAny]
