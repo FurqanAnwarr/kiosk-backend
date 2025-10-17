@@ -478,6 +478,51 @@ class PaymentIntentStatusAPI(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class CancelPOSPaymentAPI(APIView):
+    authentication_classes = []  # disable session / CSRF
+    permission_classes = [AllowAny]
+
+    def post(self, request, reader_id):
+        try:
+            # Validate client secret key
+            client_key = request.headers.get("CLIENT_SECRET_KEY")
+            expected_key = os.environ.get("CLIENT_SECRET_KEY")
+
+            if not client_key:
+                return Response(
+                    {"error": "Missing CLIENT_SECRET_KEY header"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            if client_key != expected_key:
+                return Response(
+                    {"error": "Invalid CLIENT_SECRET_KEY"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Cancel any ongoing action on the POS reader
+            canceled_action = stripe.terminal.Reader.cancel_action(reader_id)
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "POS payment action canceled successfully.",
+                    "data": canceled_action,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except stripe.error.StripeError as e:
+            return Response(
+                {"error": str(e), "stripe_error": getattr(e, "user_message", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 class CreateReaderAPI(APIView):
     authentication_classes = []  # disable session / CSRF
     permission_classes = [AllowAny]

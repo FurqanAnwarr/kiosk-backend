@@ -23,7 +23,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
-from home.views import CreateLocationAPI, CreatePaymentIntentAPI, CreateReaderAPI, GetReaderByIdAPI, ListReadersAPI, MyLoginView, PaymentIntentStatusAPI, PresentPaymentMethodAPI, ProcessPaymentIntentAPI 
+from home.views import CancelPOSPaymentAPI, CreateLocationAPI, CreatePaymentIntentAPI, CreateReaderAPI, GetReaderByIdAPI, ListReadersAPI, MyLoginView, PaymentIntentStatusAPI, PresentPaymentMethodAPI, ProcessPaymentIntentAPI 
 
 def redirect_to_admin_login(request):
     return redirect('admin:login')
@@ -73,6 +73,7 @@ urlpatterns = [
     path("api/payment-intents/", CreatePaymentIntentAPI.as_view(), name="create-payment-intent"),
     path("api/process-payment-intent/", ProcessPaymentIntentAPI.as_view(), name="process-payment-intent"),
     path("api/payment-intent-status/<str:payment_intent_id>/", PaymentIntentStatusAPI.as_view(), name='payment-intent-status'),
+    path("api/cancel-pos-payment/<str:reader_id>/", CancelPOSPaymentAPI.as_view(), name='cancel-pos-payment'),
     path("api/create-reader/", CreateReaderAPI.as_view(), name="create-reader"),
     path("api/create-location/", CreateLocationAPI.as_view(), name="create-location"),
     path("api/present-payment-method/", PresentPaymentMethodAPI.as_view(), name="present-payment-method"),
