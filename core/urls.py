@@ -67,7 +67,6 @@ urlpatterns = [
     
     # Other URLs
     path('', include('home.urls')),
-    path("__reload__/", include("django_browser_reload.urls")),
     
     # Stripe Payment Intent API
     path("api/payment-intents/", CreatePaymentIntentAPI.as_view(), name="create-payment-intent"),
@@ -85,3 +84,6 @@ urlpatterns = [
 # Serving static files in development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    urlpatterns += [path("__reload__/", include("django_browser_reload.urls"))]
