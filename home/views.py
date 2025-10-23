@@ -13,6 +13,7 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.authtoken.models import Token
+from django.views.decorators.http import require_http_methods
 import hashlib, hmac
 from django.utils import timezone
 
@@ -280,6 +281,84 @@ def heartbeat(request):
     kiosk.save(update_fields=["last_seen_at"])
     return JsonResponse({"message": "Heartbeat updated"})
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.headers.get("Stripe-Signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=settings.STRIPE_WEBHOOK_SECRET,
+        )
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        logger.warning(f"⚠️ Stripe webhook verification failed: {str(e)}")
+        return HttpResponse(status=200)
+
+    event_type = event["type"]
+    data = event["data"]["object"]
+    metadata = data.get("metadata", {})
+
+    # Handle PaymentIntent events
+    if event_type == "payment_intent.created":
+        try:
+            order, created = Order.objects.get_or_create(
+                stripe_payment_intent_id=data["id"],
+                defaults={
+                    "transaction_id": data["id"],
+                    "kiosk_id": metadata.get("kiosk_id"),
+                    "num_pictures": int(metadata.get("num_pictures", 0)),
+                    "price": data["amount"] / 100,  # convert cents to units
+                    "status": "created",
+                    "stripe_payment_status": data["status"],
+                    "stripe_response": data,
+                },
+            )
+        except Exception as e:
+            logger.error(f"❌ Failed to create order for {data['id']}: {str(e)}")
+
+    elif event_type == "payment_intent.processing":
+        try:
+            Order.objects.filter(stripe_payment_intent_id=data["id"]).update(
+                status="processing",
+                stripe_payment_status=data["status"],
+                stripe_response=data,
+            )
+        except Exception as e:
+            logger.error(f"❌ Failed to update processing status for {data['id']}: {str(e)}")
+
+    elif event_type == "payment_intent.succeeded":
+        try:
+            Order.objects.filter(stripe_payment_intent_id=data["id"]).update(
+                status="paid",
+                stripe_payment_status=data["status"],
+                stripe_charge_id=(
+                    data["charges"]["data"][0]["id"]
+                    if data.get("charges", {}).get("data")
+                    else None
+                ),
+                stripe_response=data,
+            )
+        except Exception as e:
+            logger.error(f"❌ Failed to mark order as paid for {data['id']}: {str(e)}")
+
+    elif event_type == "payment_intent.payment_failed":
+        try:
+            Order.objects.filter(stripe_payment_intent_id=data["id"]).update(
+                status="failed",
+                stripe_payment_status=data["status"],
+                stripe_response=data,
+            )
+        except Exception as e:
+            logger.error(f"❌ Failed to update failed status for {data['id']}: {str(e)}")
+
+    else:
+        logger.info(f"Unhandled event type {event_type}")
+
+    return HttpResponse(status=200)
+
 @api_view(['POST'])
 def create_reader(request):
     required_fields = ['reader_id', 'name', 'country', 'city', 'state', 'address', 'postalCode']
@@ -387,7 +466,11 @@ class CreatePaymentIntentAPI(APIView):
                 amount=int(amount),  # must be integer (in cents)
                 currency=currency,
                 payment_method_types=["card_present"],
-                capture_method="automatic"
+                capture_method="automatic",
+                metadata={
+                    "kiosk_id": request.data.get("kiosk_id"),
+                    "num_pictures": request.data.get("num_pictures"),
+                },
             )
 
             return Response(intent, status=status.HTTP_201_CREATED)

@@ -101,6 +101,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 
 # Stripe
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases

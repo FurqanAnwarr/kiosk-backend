@@ -40,17 +40,17 @@ class KioskClientForm(forms.ModelForm):
             instance.save()
         return instance
 
-@admin.register(KioskDevice)
-class KioskDeviceAdmin(admin.ModelAdmin):
-    list_display = ("kiosk_id", "status", "location", "registered_at", "last_seen_at")
-    search_fields = ("kiosk_id", "location")
-    list_filter = ("status",)
+# @admin.register(KioskDevice)
+# class KioskDeviceAdmin(admin.ModelAdmin):
+#     list_display = ("kiosk_id", "status", "location", "registered_at", "last_seen_at")
+#     search_fields = ("kiosk_id", "location")
+#     list_filter = ("status",)
 
-@admin.register(ReaderDevice)
-class ReaderDeviceAdmin(admin.ModelAdmin):
-    list_display = ("reader_id", "name", "country", "city", "state", "address", "postalCode", "kiosk", "registered_at")
-    search_fields = ("reader_id", "name")
-    list_filter = ("kiosk",)
+# @admin.register(ReaderDevice)
+# class ReaderDeviceAdmin(admin.ModelAdmin):
+#     list_display = ("reader_id", "name", "country", "city", "state", "address", "postalCode", "kiosk", "registered_at")
+#     search_fields = ("reader_id", "name")
+#     list_filter = ("kiosk",)
 @admin.register(KioskClient)
 class KioskClientAdmin(admin.ModelAdmin):
     form = KioskClientForm
@@ -119,6 +119,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ('transaction_id', 'kiosk_id', 'price', 'num_pictures', 'status', 'created_at', 'updated_at')
     search_fields = ('transaction_id', 'kiosk_id')
     list_filter = ('status', 'created_at')
+    ordering = ('-created_at', 'status')
 
 @admin.register(CardImage)
 class CardImageAdmin(admin.ModelAdmin):

@@ -83,16 +83,19 @@ class KioskHealthCheck(models.Model):
 
 class Order(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    transaction_id = models.CharField(max_length=100, unique=True)
+    transaction_id = models.CharField(max_length=100, unique=True)  # You can keep this for internal reference
     kiosk_id = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     num_pictures = models.IntegerField()
     status = models.CharField(max_length=50, default='created')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    paypal_payment_id = models.CharField(max_length=100, blank=True, null=True)
-    paypal_payer_id = models.CharField(max_length=100, blank=True, null=True)
-    paypal_response = models.JSONField(blank=True, null=True)
+
+    # Stripe fields
+    stripe_payment_intent_id = models.CharField(max_length=100, blank=True, null=True)
+    stripe_charge_id = models.CharField(max_length=100, blank=True, null=True)
+    stripe_payment_status = models.CharField(max_length=50, blank=True, null=True)
+    stripe_response = models.JSONField(blank=True, null=True)  # Store full Stripe payload if needed
 
     def __str__(self):
         return f"Order {self.transaction_id} - {self.status}"
